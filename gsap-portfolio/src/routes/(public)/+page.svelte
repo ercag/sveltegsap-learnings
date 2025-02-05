@@ -5,7 +5,8 @@
   import Blog from "$lib/components/Blog.svelte";
 
   let cursorEl: HTMLDivElement | null = null;
-  let prevX: number | null = null; // Stores the previous mouse X-coordinate
+  let prevX: number | null = null;
+  let prevY: number | null = null; // Store previous Y as well
 
   onMount(() => {
     // Listen to mouse move events and animate the custom cursor.
@@ -19,52 +20,58 @@
           ease: "power2.out",
         });
 
-        // Check if the mouse is moving to the left
-        if (prevX !== null && e.clientX < prevX) {
-          // Expand the cursor briefly to emphasize the leftward motion (20% larger)
-          gsap.to(cursorEl, {
-            scale: 1.2,
-            duration: 0.2,
-            ease: "power2.out",
-            onComplete: () => {
-              gsap.to(cursorEl, {
-                scale: 1,
-                duration: 0.2,
-                ease: "power2.out",
-              });
-            },
-          });
+        // Compute movement direction and velocity if previous position is available.
+        if (prevX !== null && prevY !== null) {
+          const dx = e.clientX - prevX;
+          const dy = e.clientY - prevY;
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI); // Movement angle in degrees
+          const velocity = Math.sqrt(dx * dx + dy * dy);
+          // Determine a factor for stretching—clamped to a max of 0.2.
+          const factor = Math.min(velocity / 200, 0.2);
+          // For the water drop, we stretch along the movement direction.
+          // Here, we stretch the major axis and slightly compress the minor axis.
+          const stretch = 1 + factor; // e.g., up to 1.2 if factor = 0.2
+          const compress = 1 - factor * 0.5; // e.g., down to ~0.9 if factor = 0.2
 
-          // Create a "mark" element at the current mouse position with adjusted (smaller) size
-          const mark = document.createElement("div");
-          mark.className = "cursor-mark";
-          mark.style.position = "fixed";
-          mark.style.top = `${e.clientY}px`;
-          mark.style.left = `${e.clientX}px`;
-          mark.style.width = "64px"; // 80px decreased by 20% = 64px
-          mark.style.height = "64px";
-          mark.style.backgroundColor = "red";
-          mark.style.borderRadius = "50%";
-          mark.style.pointerEvents = "none";
-          mark.style.transform = "translate(-50%, -50%)";
-          mark.style.filter = "blur(8px)";
-          mark.style.opacity = "0.5";
+          // Update the water drop SVG inside the custom cursor
+          const waterDropSvg = cursorEl.querySelector("svg");
+          if (waterDropSvg) {
+            waterDropSvg.style.transform = `rotate(${angle}deg) scale(${stretch}, ${compress})`;
+          }
 
-          // Append the mark to the body so that it stays in place
-          document.body.appendChild(mark);
-          // Animate the mark to fade out and scale up
-          gsap.to(mark, {
-            duration: 1,
-            opacity: 0,
-            scale: 1.2,
-            ease: "power2.out",
-            onComplete: () => {
-              mark.remove();
-            },
-          });
+          // If moving to the left (dx negative), leave a mark
+          if (dx < 0) {
+            const mark = document.createElement("div");
+            mark.className = "cursor-mark";
+            // Insert the water drop SVG into the mark
+            mark.innerHTML = `<svg viewBox="0 0 24 24" class="water-drop-svg">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5 7 13 7 13s7-8 7-13c0-3.87-3.13-7-7-7z" fill="red"/>
+            </svg>`;
+            mark.style.position = "fixed";
+            mark.style.top = `${e.clientY}px`;
+            mark.style.left = `${e.clientX}px`;
+            mark.style.width = "64px"; // 80px reduced by 20%
+            mark.style.height = "64px";
+            mark.style.pointerEvents = "none";
+            mark.style.transform = "translate(-50%, -50%)";
+            mark.style.filter = "url(#liquid-filter) blur(8px)";
+            mark.style.opacity = "0.5";
+            document.body.appendChild(mark);
+            // Animate the mark: fade out and scale up
+            gsap.to(mark, {
+              duration: 1,
+              opacity: 0,
+              scale: 1.2,
+              ease: "power2.out",
+              onComplete: () => {
+                mark.remove();
+              },
+            });
+          }
         }
-        // Update previous mouse X coordinate for next event
+        // Update previous mouse coordinates
         prevX = e.clientX;
+        prevY = e.clientY;
       }
     });
 
@@ -98,8 +105,15 @@
   </filter>
 </svg>
 
-<!-- Custom Red Dot -->
-<div class="custom-cursor" bind:this={cursorEl}></div>
+<!-- Custom Cursor as Water Drop -->
+<div class="custom-cursor" bind:this={cursorEl}>
+  <svg viewBox="0 0 24 24" class="water-drop-svg">
+    <path
+      d="M12 2C8.13 2 5 5.13 5 9c0 5 7 13 7 13s7-8 7-13c0-3.87-3.13-7-7-7z"
+      fill="red"
+    />
+  </svg>
+</div>
 
 <div class="mixed-homepage">
   <Portfolio />
@@ -127,19 +141,23 @@
     }
   }
 
-  /* Custom Red Dot as Cursor with Liquid Effect */
+  /* Custom Cursor: Water Drop */
   .custom-cursor {
     position: fixed;
     top: 0;
     left: 0;
     width: 80px;
     height: 80px;
-    background-color: red;
-    border-radius: 50%;
     pointer-events: none;
     transform: translate(-50%, -50%);
     z-index: 10000;
     /* Apply both the liquid SVG filter and a CSS blur */
     filter: url(#liquid-filter) blur(8px);
+  }
+
+  /* Setting the water drop SVG to fill the container */
+  .water-drop-svg {
+    width: 100%;
+    height: 100%;
   }
 </style>
