@@ -7,6 +7,13 @@ declare global {
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
+		interface Locals {
+			user: {
+				username: string;
+				password: string;
+				role: 'admin' | 'user';
+			} | null;
+		}
 	}
 }
 
