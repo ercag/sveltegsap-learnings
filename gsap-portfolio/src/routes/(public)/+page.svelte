@@ -142,9 +142,4 @@
     /* Apply both the liquid SVG filter and a CSS blur */
     filter: url(#liquid-filter) blur(8px);
   }
-
-  /* Styling for the mark left behind (if needed, additional styling can be added) */
-  .cursor-mark {
-    z-index: 9999;
-  }
 </style>
